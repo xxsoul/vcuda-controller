@@ -3,3 +3,6 @@ build/
 cmake-build-debug/
 proto/*.h
 proto/*.cc
+.vscode/
+.devcontainer/
+.github/dependabot.yml

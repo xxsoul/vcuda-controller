@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "include/cuda-helper.h"
 #include "include/hijack.h"
@@ -939,6 +940,44 @@ void load_cuda_libraries() {
   dlclose(table);
 }
 
+static int get_container_id_with_pop_uid(char *pod_uid, char *dst_container_id, size_t dst_size) {
+  // command to be executed
+  char command[4096];
+  int len = snprintf(command, sizeof(command)-1, "%s --addr=\"%s\" --bus-id=GetContainerIdWithPodUid --pod-uid=\"%s\" --cont-name=\"unknow\"", 
+    (RPC_CLIENT_PATH RPC_CLIENT_NAME), RPC_ADDR, pod_uid);
+  command[len+1] = '\0';
+  
+  LOGGER(4, "popen path is %s", command);
+
+  // Open the process for reading
+  FILE *fp = popen(command, "r");
+  if (fp == NULL) {
+      fprintf(stderr, "Failed to run command\n");
+      exit(1);
+  }
+
+// Read and print standard output
+  while (fgets(dst_container_id, dst_size, fp) != NULL) {}
+  LOGGER(4, "read container id from popen is %s", dst_container_id);
+
+  // Close the process and get the exit status
+  int status = pclose(fp);
+  if (WIFEXITED(status)) {
+      // If the process exits normally
+      int exit_status = WEXITSTATUS(status);
+      if (exit_status != 0) {
+        LOGGER(4, "exit_status != 0, exit_status is %d", exit_status);
+        return 1;
+      }
+  } else {
+      // If the process exits abnormally
+      LOGGER(4, "WIFEXITED(status) != true, status is %d", status);
+      return 1;
+  }
+
+  return 0;
+}
+
 // #lizard forgives
 int get_cgroup_data(const char *pid_cgroup, char *pod_uid, char *container_id,
                     size_t size) {
@@ -963,6 +1002,47 @@ int get_cgroup_data(const char *pid_cgroup, char *pod_uid, char *container_id,
     buffer[0] = '\0';
     if (unlikely(!fgets(buffer, sizeof(buffer), cgroup_fd))) {
       LOGGER(4, "can't get line from %s", pid_cgroup);
+
+
+      //Attempt to read POD_NAME and POD_ID from the environment variables, if there is a corresponding environment variable, 
+      //then go to the new process, otherwise maintain the original process
+      char *env_pod_uid = getenv("POD_UID");
+      if (env_pod_uid != NULL) {
+        //Got the podName, go through a new process, get the container_id via gpu-manager
+        LOGGER(4, "readed pod uid from env %s", env_pod_uid);
+        char res_container_id[size];
+        int tmp_res = get_container_id_with_pop_uid(env_pod_uid, res_container_id, sizeof(res_container_id));
+        LOGGER(4, "get_container_id_with_pop_uid return '%d'", tmp_res);
+        if (tmp_res == 0) {
+          strncpy(pod_uid, env_pod_uid, size);
+          pod_uid[size-1] = '\0';
+
+          /**
+           * find container id
+           */
+          last_ptr = NULL;
+          last_second = NULL;
+          token = res_container_id;
+          while (*token) {
+            if (*token == '/') {
+              last_second = last_ptr;
+              last_ptr = token;
+            }
+            ++token;
+          }
+
+          if (!last_ptr) {
+            goto DONE;
+          }
+
+          strncpy(container_id, last_ptr + 1, size);
+          container_id[size - 1] = '\0';
+
+          ret = 0;
+          goto DONE;
+        }
+      }
+
       goto DONE;
     }
 

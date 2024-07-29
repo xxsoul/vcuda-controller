@@ -638,6 +638,7 @@ entry_t nvml_library_entry[] = {
     {.name = "nvmlDeviceGetMaxPcieLinkWidth"},
     {.name = "nvmlDeviceGetMemoryErrorCounter"},
     {.name = "nvmlDeviceGetMemoryInfo"},
+    {.name = "nvmlDeviceGetMemoryInfo_v2"},
     {.name = "nvmlDeviceGetMinorNumber"},
     {.name = "nvmlDeviceGetMPSComputeRunningProcesses"},
     {.name = "nvmlDeviceGetMultiGpuBoard"},

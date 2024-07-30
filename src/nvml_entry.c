@@ -63,8 +63,9 @@ nvmlReturn_t nvmlDeviceGetHandleByIndex_v2(unsigned int index,
 
 nvmlReturn_t nvmlDeviceGetHandleByIndex(unsigned int index,
                                         nvmlDevice_t *device) {
-  return NVML_ENTRY_CALL(nvml_library_entry, nvmlDeviceGetHandleByIndex, index,
-                         device);
+  // return NVML_ENTRY_CALL(nvml_library_entry, nvmlDeviceGetHandleByIndex, index,
+  //                        device);
+  return nvmlDeviceGetHandleByIndex_v2(index, device);
 }
 
 nvmlReturn_t nvmlDeviceGetComputeRunningProcesses(nvmlDevice_t device,

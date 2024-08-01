@@ -892,6 +892,11 @@ static void load_driver_libraries() {
 }
 
 static void load_cuda_single_library(int idx) {
+  // Determines whether the specified method has already been loaded, and returns it directly if it has been loaded.
+  if (cuda_library_entry[idx].fn_ptr != NULL) {
+    return;
+  }
+
   void *table = NULL;
   char cuda_filename[FILENAME_MAX];
 

@@ -625,7 +625,7 @@ DONE:
 
 CUresult cuGetProcAddress(const char *symbol, void **pfn, int cudaVersion,
                           cuuint64_t flags) {
-  CUresult ret;
+  // CUresult ret;
   int i;
 
   load_necessary_data();
@@ -634,19 +634,17 @@ CUresult cuGetProcAddress(const char *symbol, void **pfn, int cudaVersion,
   }
   pthread_once(&g_init_set, initialization);
 
-  ret = CUDA_ENTRY_CALL(cuda_library_entry, cuGetProcAddress, symbol, pfn,
-                        cudaVersion, flags);
-  if (ret == CUDA_SUCCESS) {
+  // First determine whether there is a specified function in cuda_hooks_entry, if there is, return it directly, if not, then call the driver library function.
     for (i = 0; i < cuda_hook_nums; i++) {
       if (!strcmp(symbol, cuda_hooks_entry[i].name)) {
-        LOGGER(5, "Match hook %s", symbol);
-        *pfn = cuda_hooks_entry[i].fn_ptr;
-        break;
+        LOGGER(2, "Match hook %s", symbol);
+        pfn = &cuda_hooks_entry[i].fn_ptr;
+        return CUDA_SUCCESS;
       }
     }
-  }
-
-  return ret;
+  LOGGER(2, "Unmatch hook %s", symbol);
+  return CUDA_ENTRY_CALL(cuda_library_entry, cuGetProcAddress, symbol, pfn,
+                        cudaVersion, flags);
 }
 
 CUresult cuMemAllocManaged(CUdeviceptr *dptr, size_t bytesize,

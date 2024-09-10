@@ -635,14 +635,23 @@ CUresult cuGetProcAddress(const char *symbol, void **pfn, int cudaVersion,
   pthread_once(&g_init_set, initialization);
 
   // First determine whether there is a specified function in cuda_hooks_entry, if there is, return it directly, if not, then call the driver library function.
-    for (i = 0; i < cuda_hook_nums; i++) {
-      if (!strcmp(symbol, cuda_hooks_entry[i].name)) {
-        LOGGER(2, "Match hook %s", symbol);
-        pfn = &cuda_hooks_entry[i].fn_ptr;
-        return CUDA_SUCCESS;
+  for (i = 0; i < cuda_hook_nums; i++) {
+    if (!strcmp(symbol, cuda_hooks_entry[i].name)) {
+      LOGGER(2, "Match hook %s_v%d in cuGetProcAddress_v1", symbol, cudaVersion);
+      *pfn = cuda_hooks_entry[i].fn_ptr;
+      // Replace the underlying target function with the desired version
+      for (int j = 0; j < CUDA_ENTRY_END; j++) {
+        if (!strcmp(symbol, "cuGetProcAddress") || !strcmp(symbol, "cuGetProcAddress_v2")) {
+            return CUDA_SUCCESS;
+        } else if (!strcmp(symbol, cuda_library_entry[j].name)) {
+          return CUDA_ENTRY_CALL(cuda_library_entry, cuGetProcAddress, symbol, &cuda_library_entry[j].fn_ptr, cudaVersion, flags);
+        }
       }
+      LOGGER(2, "Match hook %s_v%d in cuGetProcAddress_v1 but the specified function is not found in cuda_library_entry", symbol, cudaVersion);
+      return CUDA_SUCCESS;
     }
-  LOGGER(2, "Unmatch hook %s", symbol);
+  }
+  LOGGER(4, "Unmatch hook %s_v%d in cuGetProcAddress_v1", symbol, cudaVersion);
   return CUDA_ENTRY_CALL(cuda_library_entry, cuGetProcAddress, symbol, pfn,
                         cudaVersion, flags);
 }
